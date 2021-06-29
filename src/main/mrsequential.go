@@ -6,13 +6,16 @@ package main
 // go run mrsequential.go wc.so pg*.txt
 //
 
-import "fmt"
-import "6.824/mr"
-import "plugin"
-import "os"
-import "log"
-import "io/ioutil"
-import "sort"
+import (
+	"fmt"
+	"io/ioutil"
+	"log"
+	"os"
+	"plugin"
+	"sort"
+
+	"6.824/mr"
+)
 
 // for sorting by key.
 type ByKey []mr.KeyValue
@@ -46,6 +49,7 @@ func main() {
 			log.Fatalf("cannot read %v", filename)
 		}
 		file.Close()
+		// 对每一个 file 调用 map 方法
 		kva := mapf(filename, string(content))
 		intermediate = append(intermediate, kva...)
 	}
@@ -59,7 +63,12 @@ func main() {
 	sort.Sort(ByKey(intermediate))
 
 	oname := "mr-out-0"
-	ofile, _ := os.Create(oname)
+	ofile, err := os.Create(oname)
+	if err != nil {
+		log.Fatalf("创建文件失败")
+		return
+	}
+	defer ofile.Close()
 
 	//
 	// call Reduce on each distinct key in intermediate[],
@@ -69,8 +78,10 @@ func main() {
 	for i < len(intermediate) {
 		j := i + 1
 		for j < len(intermediate) && intermediate[j].Key == intermediate[i].Key {
+			// 如果 key 相同则一直加
 			j++
 		}
+		// 开始统计同一个 key 出现的次数 此时的 j 其实是加了一 不能算上 k < j
 		values := []string{}
 		for k := i; k < j; k++ {
 			values = append(values, intermediate[k].Value)
@@ -78,12 +89,12 @@ func main() {
 		output := reducef(intermediate[i].Key, values)
 
 		// this is the correct format for each line of Reduce output.
+		// 输出到文件
 		fmt.Fprintf(ofile, "%v %v\n", intermediate[i].Key, output)
 
-		i = j
+		i = j // i 设置偏移
 	}
 
-	ofile.Close()
 }
 
 //
