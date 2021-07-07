@@ -9,10 +9,14 @@ package main
 // Please do not change this file.
 //
 
-import "6.824/mr"
-import "time"
-import "os"
-import "fmt"
+import (
+	"fmt"
+	"log"
+	"os"
+	"time"
+
+	"6.824/mr"
+)
 
 func main() {
 	if len(os.Args) < 2 {
@@ -20,10 +24,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	log.Println("coordinator start...")
 	m := mr.MakeCoordinator(os.Args[1:], 10)
 	for m.Done() == false {
 		time.Sleep(time.Second)
 	}
 
 	time.Sleep(time.Second)
+	log.Println("coordinator quit...")
 }
