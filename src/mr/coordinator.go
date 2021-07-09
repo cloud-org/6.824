@@ -16,23 +16,22 @@ const Map TaskType = "map"
 const Reduce TaskType = "reduce"
 
 type Task struct {
-	index       int
-	types       TaskType
-	completed   bool // 是否完成
-	distributed bool // 是否已分配
+	Index       int
+	Filename    string
+	Types       TaskType
+	Completed   bool // 是否完成
+	Distributed bool // 是否已分配
 }
 
 type Coordinator struct {
 	mu       sync.Mutex
 	finished bool
-	files    []string
 
-	mapTasks    []Task
-	reduceTasks []Task
+	mapTasks    []*Task
+	reduceTasks []*Task
 
 	mapCount    int
 	reduceCount int
-	stopC       struct{}
 }
 
 // Your code here -- RPC handlers for the worker to call.
@@ -46,11 +45,15 @@ func (c *Coordinator) AskTask(req *AskTaskRequest, resp *AskTaskResponse) error 
 	if !c.finishMap() { // 分配 map task
 		task = c.getTask(Map)
 		resp.Task = task
-		go c.waitTaskDone(task)
+		if task != nil {
+			go c.waitTaskDone(task)
+		}
 	} else { // 分配 reduce task
 		task = c.getTask(Reduce)
 		resp.Task = task
-		go c.waitTaskDone(task)
+		if task != nil {
+			go c.waitTaskDone(task)
+		}
 	}
 	return nil
 }
@@ -59,12 +62,32 @@ func (c *Coordinator) SubmitTask(req *SubmitTaskRequest, resp *SubmitTaskRespons
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	return
+	log.Println("接收到任务完成提交", req.Task)
+	index := req.Task.Index
+	types := req.Task.Types
+	var task *Task
+	if types == Map {
+		task = c.mapTasks[index]
+	} else {
+		task = c.reduceTasks[index]
+	}
+	if task.Distributed == true {
+		task.Completed = true
+		log.Println("任务已完成", req.Task)
+		if task.Types == Map {
+			c.mapCount++
+		} else {
+			c.reduceCount++
+			if c.reduceCount >= len(c.reduceTasks) {
+				c.finished = true // 总的任务完成
+			}
+		}
+	}
+
+	return nil
 }
 
-//
-// start a thread that listens for RPCs from worker.go
-//
+// server start a thread that listens for RPCs from worker.go
 func (c *Coordinator) server() {
 	rpc.Register(c)
 	rpc.HandleHTTP()
@@ -78,10 +101,9 @@ func (c *Coordinator) server() {
 	go http.Serve(l, nil)
 }
 
-//
+// Done
 // main/mrcoordinator.go calls Done() periodically to find out
 // if the entire job has finished.
-//
 func (c *Coordinator) Done() bool {
 	ret := false
 
@@ -103,15 +125,17 @@ func (c *Coordinator) getTask(taskType TaskType) *Task {
 	if taskType == Map {
 		for i := 0; i < len(c.mapTasks); i++ {
 			task := c.mapTasks[i]
-			if task.distributed == false {
-				return &task
+			if task.Distributed == false {
+				task.Distributed = true
+				return task
 			}
 		}
 	} else {
 		for i := 0; i < len(c.reduceTasks); i++ {
 			task := c.reduceTasks[i]
-			if task.distributed == false {
-				return &task
+			if task.Distributed == false {
+				task.Distributed = true
+				return task
 			}
 		}
 	}
@@ -124,53 +148,49 @@ func (c *Coordinator) waitTaskDone(task *Task) {
 	<-timer.C
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	switch task.types {
+	// 如果已完成，则 ++ 否则设置为未分配
+	switch task.Types {
 	case Map:
-		if c.mapTasks[task.index].completed == true {
-			c.mapCount++
-		} else {
-			c.mapTasks[task.index].distributed = false
+		if !c.mapTasks[task.Index].Completed {
+			c.mapTasks[task.Index].Distributed = false
 		}
 	case Reduce:
-		if c.reduceTasks[task.index].completed == true {
-			c.reduceCount++
-		} else {
-			c.reduceTasks[task.index].distributed = false
+		if !c.reduceTasks[task.Index].Completed {
+			c.reduceTasks[task.Index].Distributed = false
 		}
 	}
 
 	return
 }
 
-//
+// MakeCoordinator
 // create a Coordinator.
 // main/mrcoordinator.go calls this function.
 // nReduce is the number of reduce tasks to use.
-//
 func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c := Coordinator{
-		files:       files,
 		mu:          sync.Mutex{},
 		finished:    false,
 		mapCount:    0,
 		reduceCount: 0,
 	}
 
-	for f := 0; f < len(files); f++ {
-		c.mapTasks = append(c.mapTasks, Task{
-			index:       f,
-			types:       Map,
-			completed:   false,
-			distributed: false,
+	for i := 0; i < len(files); i++ {
+		c.mapTasks = append(c.mapTasks, &Task{
+			Index:       i,
+			Filename:    files[i],
+			Types:       Map,
+			Completed:   false,
+			Distributed: false,
 		})
 	}
 
 	for r := 0; r < nReduce; r++ {
-		c.reduceTasks = append(c.reduceTasks, Task{
-			index:       r,
-			types:       Reduce,
-			completed:   false,
-			distributed: false,
+		c.reduceTasks = append(c.reduceTasks, &Task{
+			Index:       r,
+			Types:       Reduce,
+			Completed:   false,
+			Distributed: false,
 		})
 	}
 

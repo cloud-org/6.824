@@ -15,8 +15,6 @@ import (
 // remember to capitalize all names.
 //
 
-// Add your RPC definitions here.
-
 type AskTaskRequest struct {
 }
 
@@ -25,6 +23,7 @@ type AskTaskResponse struct {
 }
 
 type SubmitTaskRequest struct {
+	Task *Task
 }
 
 type SubmitTaskResponse struct {
@@ -44,8 +43,8 @@ func coordinatorSock() string {
 // Map functions return a slice of KeyValue.
 //
 type KeyValue struct {
-	Key   string
-	Value string
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 // for sorting by key.

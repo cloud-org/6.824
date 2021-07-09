@@ -236,7 +236,7 @@ sleep 1
 timeout -k 2s 180s ../mrworker ../../mrapps/crash.so &
 
 # mimic rpc.go's coordinatorSock()
-SOCKNAME=/var/tmp/824-mr-`id -u`
+SOCKNAME=/tmp/824-mr-`id -u`
 
 ( while [ -e $SOCKNAME -a ! -f mr-done ]
   do
