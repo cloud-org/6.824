@@ -10,7 +10,8 @@ import (
 	"time"
 )
 
-const middledir = "/Users/ashing/Documents/6.824/src/tmp"
+const middledir = "/tmp/mr"
+const middletmpdir = "/tmp/mrtmp"
 
 type worker struct {
 	mapf    func(string, string) []KeyValue
@@ -86,7 +87,7 @@ func (w *worker) DoReduce(task *Task) error {
 		return err
 	}
 
-	file, err := ioutil.TempFile(middledir, fmt.Sprintf("reduce_tmp_%d", task.Index))
+	file, err := ioutil.TempFile(middletmpdir, fmt.Sprintf("reduce_tmp_%d", task.Index))
 	if err != nil {
 		return err
 	}
@@ -136,7 +137,7 @@ func (w *worker) saveIntermediate(task *Task, kvs []KeyValue) error {
 	}
 
 	for index, value := range res {
-		file, err := ioutil.TempFile(middledir, fmt.Sprintf("map_tmp_%d_%d_", task.Index, index))
+		file, err := ioutil.TempFile(middletmpdir, fmt.Sprintf("map_tmp_%d_%d_", task.Index, index))
 		if err != nil {
 			return err
 		}
@@ -188,7 +189,8 @@ func (w *worker) loadIntermediate(task *Task) ([]KeyValue, error) {
 			}
 			file.Close()
 		} else if err != nil {
-			return nil, err
+			log.Println("sscanf err:", err)
+			continue
 		}
 	}
 
