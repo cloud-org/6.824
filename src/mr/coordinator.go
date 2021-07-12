@@ -62,21 +62,24 @@ func (c *Coordinator) SubmitTask(req *SubmitTaskRequest, resp *SubmitTaskRespons
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	log.Println("接收到任务完成提交", req.Task)
+	//log.Println("接收到任务完成提交", req.Task)
 	index := req.Task.Index
 	types := req.Task.Types
 	var task *Task
-	if types == Map {
+
+	switch types {
+	case Map:
 		task = c.mapTasks[index]
-	} else {
-		task = c.reduceTasks[index]
-	}
-	if task.Distributed == true {
-		task.Completed = true
-		log.Println("任务已完成", req.Task)
-		if task.Types == Map {
+		if task.Distributed == true {
+			task.Completed = true
+			//log.Printf("map task 已完成, %+v\n", req.Task)
 			c.mapCount++
-		} else {
+		}
+	case Reduce:
+		task = c.reduceTasks[index]
+		if task.Distributed == true {
+			task.Completed = true
+			//log.Printf("reduce task 已完成, %+v\n", req.Task)
 			c.reduceCount++
 			if c.reduceCount >= len(c.reduceTasks) {
 				c.finished = true // 总的任务完成
@@ -148,7 +151,7 @@ func (c *Coordinator) waitTaskDone(task *Task) {
 	<-timer.C
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	// 如果已完成，则 ++ 否则设置为未分配
+	// 如果未完成，则重新设置为未分配
 	switch task.Types {
 	case Map:
 		if !c.mapTasks[task.Index].Completed {

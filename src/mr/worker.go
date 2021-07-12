@@ -37,6 +37,8 @@ func Worker(mapf func(string, string) []KeyValue,
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
+		// 注：这里不能开 goroutine
+		// 因为 mrapps 中 mtiming/rtiming 会测试相应的并行 task remove {type}-{pid} 文件 并行 remove 会 panic
 		if task.Types == Map {
 			err := myworker.DoMap(task)
 			if err != nil {
@@ -129,11 +131,22 @@ func (w *worker) saveIntermediate(task *Task, kvs []KeyValue) error {
 	for i := 0; i < 10; i++ {
 		res[i] = make([]KeyValue, 0)
 	}
-	for i := 0; i < len(kvs); i++ {
-		kv := kvs[i]
-		reduceIndex := ihash(kv.Key) % 10 // reduce task length
-		// mr-mapIndex-reduceIndex
-		res[reduceIndex] = append(res[reduceIndex], kv)
+	// DONE: 这里的 key 已经进行了排序 所以可以不用算么多次 ihash
+	//for i := 0; i < len(kvs); i++ {
+	//	kv := kvs[i]
+	//	reduceIndex := ihash(kv.Key) % 10 // reduce task length
+	//	// mr-mapIndex-reduceIndex
+	//	res[reduceIndex] = append(res[reduceIndex], kv)
+	//}
+	i := 0
+	for i < len(kvs) {
+		j := i + 1
+		for j < len(kvs) && kvs[j].Key == kvs[i].Key {
+			j++
+		}
+		reduceIndex := ihash(kvs[i].Key) % 10
+		res[reduceIndex] = append(res[reduceIndex], kvs[i:j]...)
+		i = j
 	}
 
 	for index, value := range res {

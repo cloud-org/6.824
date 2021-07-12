@@ -24,12 +24,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	log.Println("coordinator start...")
+	start := time.Now()
+	log.Println("coordinator start, now:", start)
 	m := mr.MakeCoordinator(os.Args[1:], 10)
 	for m.Done() == false {
 		time.Sleep(time.Second)
 	}
 
 	time.Sleep(time.Second)
-	log.Println("coordinator quit...")
+	log.Println("coordinator quit, const:", time.Now().Sub(start))
 }

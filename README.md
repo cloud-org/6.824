@@ -14,3 +14,8 @@ notice: do not copy, just for fun
 #### lab1
 
 mr: https://pdos.csail.mit.edu/6.824/labs/lab-mr.html
+
+paper: 
+
+- origin: http://research.google.com/archive/mapreduce-osdi04.pdf
+- translate: https://github.com/pirDOL/kaka/blob/master/Papers/MapReduce-Simplified-Data-Processing-on-Large-Clusters.md
